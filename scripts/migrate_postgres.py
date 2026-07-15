@@ -23,6 +23,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Apply ScamShield PostgreSQL schema migrations")
     parser.add_argument("--env-file", type=Path, default=PROJECT_ROOT / ".env.local",
                         help="dotenv file containing DATABASE_URL (default: .env.local)")
+    parser.add_argument("--verify-only", action="store_true",
+                        help="verify core tables without changing the database")
     args = parser.parse_args()
     load_dotenv(args.env_file)
     database_url = os.getenv("DATABASE_URL") or os.getenv("POSTGRES_URL")
@@ -32,6 +34,15 @@ def main() -> int:
     import psycopg
 
     with psycopg.connect(database_url, autocommit=True) as connection:
+        if args.verify_only:
+            rows = connection.execute("""
+                SELECT tablename FROM pg_tables
+                WHERE schemaname = 'public'
+                  AND tablename IN ('users', 'user_scan_reports', 'user_audit_logs')
+                ORDER BY tablename
+            """).fetchall()
+            print("Verified tables: " + ", ".join(row[0] for row in rows))
+            return 0
         for migration in MIGRATIONS:
             connection.execute(migration.read_text(encoding="utf-8"))
             print(f"Applied {migration.relative_to(PROJECT_ROOT)}")
