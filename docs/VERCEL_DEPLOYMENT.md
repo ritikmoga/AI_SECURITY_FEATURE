@@ -26,6 +26,14 @@ Optional: `REDIS_URL`, Google Safe Browsing, VirusTotal, and urlscan.io keys.
 4. In Google Cloud, add the final Vercel domain as an Authorized JavaScript
    origin before enabling Google Sign-In.
 
+After connecting a managed PostgreSQL service, pull its environment variables
+locally and initialise the database once:
+
+```powershell
+npx vercel env pull .env.local --environment=production
+.\.venv\Scripts\python.exe scripts\migrate_postgres.py --env-file .env.local
+```
+
 ## Cloud limitations
 
 Vercel functions are stateless and do not have access to visitors’ devices.
