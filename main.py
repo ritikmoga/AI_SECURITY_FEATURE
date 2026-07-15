@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 
 from src.config import AppConfig
 from src.detection.malware_detector import MalwareDetector
+from src.detection.device_scanner import DeviceScanner
 from src.detection.url_checker import URLChecker
 from src.scoring.risk_score import RiskScorer
 
@@ -21,6 +22,8 @@ def main() -> None:
     group.add_argument("--url", help="Scan a single URL safely")
     group.add_argument("--message", help="Scan a text message safely")
     group.add_argument("--file", help="Scan a local file safely without executing it")
+    group.add_argument("--directory", help="Scan a user-selected local directory without executing files")
+    parser.add_argument("--max-files", type=int, default=1000, help="Maximum files for --directory (default: 1000)")
     args = parser.parse_args()
 
     config = AppConfig.from_env()
@@ -36,11 +39,13 @@ def main() -> None:
         message = {"subject": "", "body": args.message, "attachments": []}
         findings = checker.check(message) + detector.detect_message(message)
         report = scorer.build_report("message", "message", findings)
-    else:
+    elif args.file:
         detector = MalwareDetector(config)
         path = Path(args.file)
         findings, meta = detector.analyze_file(path, original_filename=path.name)
         report = scorer.build_report("file", path.name, findings, metadata=meta)
+    else:
+        report = DeviceScanner(config).scan_directory(Path(args.directory), max_files=max(1, min(args.max_files, 10000)))
 
     print(json.dumps(report, indent=2))
 

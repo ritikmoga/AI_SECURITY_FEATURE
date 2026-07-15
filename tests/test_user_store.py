@@ -13,3 +13,5 @@ def test_google_user_and_report_are_persisted(tmp_path: Path) -> None:
     store.save_report(user["id"], report)
     assert store.list_reports(user["id"]) == [report]
     assert store.dashboard(user["id"]) == {"total": 1, "average": 12, "high_risk": 0}
+    assert store.delete_report(user["id"], "scan-1") is True
+    assert store.list_reports(user["id"]) == []

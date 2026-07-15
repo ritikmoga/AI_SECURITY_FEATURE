@@ -3,6 +3,7 @@ import type { DashboardPage } from '../../types';
 const entries: Array<{ id: DashboardPage; label: string; detail: string }> = [
   { id: 'url', label: 'URL scanner', detail: 'Link intelligence' }, { id: 'message', label: 'Message scanner', detail: 'Phishing analysis' },
   { id: 'file', label: 'File scanner', detail: 'Static inspection' }, { id: 'qr', label: 'QR scanner', detail: 'Local decode + scan' },
+  { id: 'device', label: 'Device scan', detail: 'Selected folder only' },
   { id: 'reports', label: 'Reports', detail: 'Scan history' }, { id: 'lookup', label: 'Report lookup', detail: 'Find by scan ID' }
 ];
 

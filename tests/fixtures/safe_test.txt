@@ -1,0 +1,1 @@
+This is a harmless ScamShield AI sample file used for static-analysis demonstrations.

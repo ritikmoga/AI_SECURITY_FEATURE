@@ -1,6 +1,6 @@
 import type { AdminOverview, ApiEnvelope, AuthSession, HealthStatus, ScanReport } from '../types';
 
-const DEFAULT_API_BASE = 'http://192.168.1.78:5000';
+const DEFAULT_API_BASE = '';
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/$/, '');
 const SESSION_KEY = 'scamshield.auth.session.v1';
 
@@ -78,6 +78,12 @@ export async function scanFile(file: File): Promise<ScanReport> {
   return parseResponse<ScanReport>(response);
 }
 
+export async function scanDeviceFiles(files: File[]): Promise<ScanReport> {
+  const form = new FormData(); files.forEach((file) => form.append('files', file, file.webkitRelativePath || file.name));
+  const response = await fetch(`${API_BASE_URL}/api/scan/device-files`, { method: 'POST', headers: authHeaders(), body: form });
+  return parseResponse<ScanReport>(response);
+}
+
 export async function fetchReport(scanId: string): Promise<ScanReport> {
   const response = await fetch(`${API_BASE_URL}/api/scan/report/${encodeURIComponent(scanId.trim())}`, { headers: authHeaders() });
   return parseResponse<ScanReport>(response);
@@ -98,4 +104,10 @@ export async function fetchUserReports(): Promise<ScanReport[]> {
 export async function fetchAdminOverview(): Promise<AdminOverview> {
   const response = await fetch(`${API_BASE_URL}/api/admin/overview`, { headers: authHeaders() });
   return parseResponse<AdminOverview>(response);
+}
+
+export async function exportUserReports(): Promise<Blob> {
+  const response = await fetch(`${API_BASE_URL}/api/user/reports/export.csv`, { headers: authHeaders() });
+  if (!response.ok) throw new Error('Could not export scan reports.');
+  return response.blob();
 }

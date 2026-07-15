@@ -41,11 +41,27 @@ cp .env.example .env
 python app.py
 ```
 
-Open:
+Open the full dashboard and API from one process:
 
 ```text
-http://localhost:5000/api/health
+http://localhost:5000
 ```
+
+On Windows, run the whole app with one command (it builds the frontend then
+starts Flask):
+
+```powershell
+.\start.ps1
+```
+
+For frontend-only development, use `npm run dev` inside `frontend`; Vite proxies
+`/api` requests to Flask automatically.
+
+## Public Vercel deployment
+
+The repository includes a Vercel configuration for public hosting. See
+[`docs/VERCEL_DEPLOYMENT.md`](docs/VERCEL_DEPLOYMENT.md) for the required
+database, authentication, and environment setup.
 
 ## Example API Calls
 

@@ -52,3 +52,8 @@ class PostgresUserStore:
             """, (user_id,))
             row = cursor.fetchone()
             return {key: int(row[key]) for key in ("total", "average", "high_risk")}
+
+    def delete_report(self, user_id: str, scan_id: str) -> bool:
+        with self._connect() as conn, conn.cursor() as cursor:
+            cursor.execute("DELETE FROM user_scan_reports WHERE user_id = %s::uuid AND scan_id = %s", (user_id, scan_id))
+            return cursor.rowcount > 0

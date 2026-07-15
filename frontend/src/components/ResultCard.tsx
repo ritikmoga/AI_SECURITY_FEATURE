@@ -21,7 +21,7 @@ function FindingRow({ finding }: { finding: Finding }) {
         <h4>{finding.title || finding.type || 'Finding'}</h4>
       </div>
       {finding.description ? <p>{finding.description}</p> : null}
-      {finding.evidence ? <code>{finding.evidence}</code> : null}
+      {finding.evidence ? <code>{typeof finding.evidence === 'string' ? finding.evidence : JSON.stringify(finding.evidence)}</code> : null}
       {typeof finding.score === 'number' ? <span className="finding-score">+{finding.score}</span> : null}
     </article>
   );

@@ -10,17 +10,20 @@ from __future__ import annotations
 
 import os
 import tempfile
+import csv
+import io
 from pathlib import Path
 from typing import Any, Dict
 
 from dotenv import load_dotenv
-from flask import Flask, jsonify, request
+from flask import Flask, Response, jsonify, request, send_from_directory
 from flask_cors import CORS
 from werkzeug.utils import secure_filename
 
 from src.config import AppConfig
 from src.auth.tokens import TokenManager
 from src.detection.malware_detector import MalwareDetector
+from src.detection.device_scanner import DeviceScanner
 from src.detection.qr_checker import QRChecker
 from src.detection.url_checker import URLChecker
 from src.scoring.risk_score import RiskScorer
@@ -33,10 +36,12 @@ from src.utils.security import apply_security_headers, request_id
 from src.utils.validation import ValidationError, ensure_text, require_json, validate_url_input
 
 load_dotenv()
+PROJECT_ROOT = Path(__file__).resolve().parent
+FRONTEND_DIST = PROJECT_ROOT / "frontend" / "dist"
 
 
 def create_app(config: AppConfig | None = None) -> Flask:
-    app = Flask(__name__)
+    app = Flask(__name__, static_folder=str(FRONTEND_DIST), static_url_path="")
     app_config = config or AppConfig.from_env()
     app.config["MAX_CONTENT_LENGTH"] = app_config.max_file_size_mb * 1024 * 1024
     CORS(app, resources={r"/api/*": {"origins": app_config.cors_origins}})
@@ -44,6 +49,7 @@ def create_app(config: AppConfig | None = None) -> Flask:
     url_checker = URLChecker(app_config)
     malware_detector = MalwareDetector(app_config)
     qr_checker = QRChecker(app_config, url_checker=url_checker)
+    device_scanner = DeviceScanner(app_config)
     scorer = RiskScorer()
     reports = ReportStore(app_config.report_storage_path)
     users = PostgresUserStore(app_config.database_url) if app_config.database_url else UserStore(app_config.database_path)
@@ -96,6 +102,8 @@ def create_app(config: AppConfig | None = None) -> Flask:
 
     @app.get("/")
     def index() -> Any:
+        if (FRONTEND_DIST / "index.html").is_file():
+            return send_from_directory(FRONTEND_DIST, "index.html")
         return jsonify({
             "name": "ScamShield AI Security Feature",
             "status": "online",
@@ -109,6 +117,18 @@ def create_app(config: AppConfig | None = None) -> Flask:
                 "GET /api/scan/report/<scan_id>",
             ],
         })
+
+    @app.get("/<path:frontend_path>")
+    def frontend_asset(frontend_path: str) -> Any:
+        """Serve the React single-page application from the Flask process."""
+        if frontend_path.startswith("api/"):
+            return jsonify({"status": "error", "message": "Endpoint not found."}), 404
+        asset = FRONTEND_DIST / frontend_path
+        if asset.is_file():
+            return send_from_directory(FRONTEND_DIST, frontend_path)
+        if (FRONTEND_DIST / "index.html").is_file():
+            return send_from_directory(FRONTEND_DIST, "index.html")
+        return jsonify({"status": "error", "message": "Frontend build not found. Run npm run build in frontend."}), 503
 
     @app.get("/api/health")
     def health() -> Any:
@@ -184,6 +204,27 @@ def create_app(config: AppConfig | None = None) -> Flask:
         if not user:
             return jsonify({"status": "error", "message": "Sign in is required."}), 401
         return jsonify({"status": "success", "data": users.dashboard(user["id"])})
+
+    @app.get("/api/user/reports/export.csv")
+    def export_user_reports() -> Any:
+        user = current_user()
+        if not user:
+            return jsonify({"status": "error", "message": "Sign in is required."}), 401
+        output = io.StringIO()
+        writer = csv.DictWriter(output, fieldnames=["scan_id", "created_at", "scan_type", "target", "risk_score", "risk_level", "summary"])
+        writer.writeheader()
+        for report in users.list_reports(user["id"], limit=1000):
+            writer.writerow({key: report.get(key, "") for key in writer.fieldnames})
+        return Response(output.getvalue(), mimetype="text/csv", headers={"Content-Disposition": "attachment; filename=scamshield-reports.csv"})
+
+    @app.delete("/api/user/reports/<scan_id>")
+    def delete_user_report(scan_id: str) -> Any:
+        user = current_user()
+        if not user:
+            return jsonify({"status": "error", "message": "Sign in is required."}), 401
+        if not users.delete_report(user["id"], scan_id):
+            return jsonify({"status": "error", "message": "Report not found."}), 404
+        return jsonify({"status": "success", "data": {"scan_id": scan_id, "deleted": True}})
 
     @app.get("/api/admin/overview")
     def admin_overview() -> Any:
@@ -283,6 +324,47 @@ def create_app(config: AppConfig | None = None) -> Flask:
                     temp_path.unlink()
                 except OSError:
                     app.logger.warning("Could not delete temporary upload: %s", temp_path)
+
+    @app.post("/api/scan/device-files")
+    def scan_device_files() -> Any:
+        """Scan a browser-user-selected folder upload; never accesses the device directly."""
+        if os.getenv("VERCEL"):
+            return jsonify({"status": "error", "message": "Device folder scans run only in the local desktop deployment. Select individual files for cloud scanning."}), 501
+        uploaded_files = request.files.getlist("files")
+        if not uploaded_files:
+            return jsonify({"status": "error", "message": "Select one or more files from a folder."}), 400
+        if len(uploaded_files) > 100:
+            return jsonify({"status": "error", "message": "Device scan is limited to 100 files per request."}), 400
+        findings: list[dict[str, Any]] = []
+        scanned = skipped = 0
+        temp_paths: list[Path] = []
+        try:
+            for uploaded in uploaded_files:
+                filename = secure_filename(uploaded.filename or "")
+                if not filename:
+                    skipped += 1; continue
+                suffix = Path(filename).suffix.lower()
+                with tempfile.NamedTemporaryFile(delete=False, suffix=suffix) as tmp:
+                    uploaded.save(tmp.name); path = Path(tmp.name); temp_paths.append(path)
+                if path.stat().st_size > app.config["MAX_CONTENT_LENGTH"]:
+                    skipped += 1; continue
+                file_findings, _ = malware_detector.analyze_file(path, original_filename=filename)
+                scanned += 1
+                for finding in file_findings:
+                    if finding.get("severity") != "info":
+                        findings.append({**finding, "evidence": {**dict(finding.get("evidence", {})), "file": filename}})
+            if not findings:
+                findings = [{"type": "no_obvious_device_risk", "severity": "info", "title": "No obvious local file risk found", "description": "Static checks found no high-confidence warning in the selected files.", "evidence": {"files_scanned": scanned}, "score": 0}]
+            report = scorer.build_report("file", "selected device folder", findings[:100], metadata={"mode": "browser_folder_scan", "files_scanned": scanned, "files_skipped": skipped, "static_analysis_only": True})
+            stored = reports.save(report); save_for_signed_in_user(stored)
+            return jsonify({"status": "success", "data": stored}), 200
+        except Exception:
+            app.logger.exception("Device file scan failed")
+            return jsonify({"status": "error", "message": "Device file scan failed safely."}), 500
+        finally:
+            for path in temp_paths:
+                try: path.unlink(missing_ok=True)
+                except OSError: app.logger.warning("Could not delete temporary device-scan upload: %s", path)
 
     @app.get("/api/scan/report/<scan_id>")
     def get_report(scan_id: str) -> Any:

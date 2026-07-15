@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { AuthButton } from './components/AuthButton';
 import { AdminPanel } from './components/AdminPanel';
 import { Sidebar } from './components/layout/Sidebar';
+import { ExportReportsButton } from './components/ExportReportsButton';
 import { Hero } from './components/Hero';
 import { HistoryPanel } from './components/HistoryPanel';
 import { ResultCard } from './components/ResultCard';
@@ -58,7 +59,7 @@ export default function App() {
       </section>
 
       {page === 'admin' && user?.role === 'admin' ? <AdminPanel /> : null}
-      {page === 'reports' ? <HistoryPanel reports={history} onSelect={setSelectedReport} onClear={handleClearHistory} /> : null}
+      {page === 'reports' ? <><div className="reports-actions">{user ? <ExportReportsButton /> : <span className="muted">Sign in to export your cloud report history.</span>}</div><section className="workspace-grid"><div className="left-stack"><HistoryPanel reports={history} onSelect={setSelectedReport} onClear={handleClearHistory} /></div><ResultCard report={selectedReport} /></section></> : null}
       {page !== 'reports' && page !== 'admin' ? <section id="scanner" className="workspace-grid">
         <div className="left-stack">
           <ScannerPanel page={page} onReport={handleReport} />

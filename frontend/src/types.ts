@@ -62,4 +62,4 @@ export interface AdminOverview {
 }
 
 export type ScannerTab = 'url' | 'message' | 'file' | 'qr' | 'report';
-export type DashboardPage = 'url' | 'message' | 'file' | 'qr' | 'reports' | 'lookup' | 'admin';
+export type DashboardPage = 'url' | 'message' | 'file' | 'device' | 'qr' | 'reports' | 'lookup' | 'admin';

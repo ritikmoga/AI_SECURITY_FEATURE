@@ -91,3 +91,9 @@ class UserStore:
                 FROM scan_reports WHERE user_id = ?
             """, (user_id,)).fetchone()
         return {"total": int(row["total"]), "average": int(row["average"]), "high_risk": int(row["high_risk"] or 0)}
+
+    def delete_report(self, user_id: int, scan_id: str) -> bool:
+        """Delete only a report owned by the authenticated user."""
+        with self._connect() as conn:
+            result = conn.execute("DELETE FROM scan_reports WHERE user_id = ? AND scan_id = ?", (user_id, scan_id))
+        return result.rowcount > 0
