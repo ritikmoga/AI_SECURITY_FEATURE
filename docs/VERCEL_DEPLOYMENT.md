@@ -29,6 +29,13 @@ Optional: `REDIS_URL`, Google Safe Browsing, VirusTotal, and urlscan.io keys.
 ## Cloud limitations
 
 Vercel functions are stateless and do not have access to visitors’ devices.
+
+## Data storage
+
+Without `DATABASE_URL`, the app uses SQLite in Vercel's temporary `/tmp`
+directory so the function can start. This data can disappear whenever Vercel
+creates a new function instance. For persistent user accounts and reports, set
+`DATABASE_URL` to a hosted PostgreSQL connection string before public use.
 Device-folder scans remain a local-only feature. For persistent report history,
 configure PostgreSQL through `DATABASE_URL`; local JSON/SQLite storage is only
 for development.

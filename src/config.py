@@ -47,18 +47,25 @@ class AppConfig:
                 if ext.strip()
             }
 
+        # Vercel functions can write only to /tmp.  Keep the local defaults for
+        # desktop development, but use an ephemeral safe location in serverless
+        # deployments until a hosted PostgreSQL DATABASE_URL is configured.
+        serverless_tmp = Path("/tmp") if os.getenv("VERCEL") else Path("./data")
+        report_storage_path = Path(os.getenv("REPORT_STORAGE_PATH", str(serverless_tmp / "reports.json")))
+        database_path = Path(os.getenv("DATABASE_PATH", str(serverless_tmp / "scamshield.db")))
+
         return cls(
             version=os.getenv("SCAMSHIELD_VERSION", "1.0.0"),
             cors_origins=os.getenv("CORS_ORIGINS", "*"),
             max_file_size_mb=int(os.getenv("MAX_FILE_SIZE_MB", "10")),
             rate_limit_per_minute=int(os.getenv("RATE_LIMIT_PER_MINUTE", "60")),
-            report_storage_path=Path(os.getenv("REPORT_STORAGE_PATH", "./data/reports.json")),
+            report_storage_path=report_storage_path,
             external_checks_enabled=os.getenv("EXTERNAL_CHECKS_ENABLED", "false").lower() == "true",
             allowed_extensions=parsed_extensions,
             google_safe_browsing_api_key=os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", ""),
             virustotal_api_key=os.getenv("VIRUSTOTAL_API_KEY", ""),
             urlscan_api_key=os.getenv("URLSCAN_API_KEY", ""),
-            database_path=Path(os.getenv("DATABASE_PATH", "./data/scamshield.db")),
+            database_path=database_path,
             auth_secret_key=os.getenv("AUTH_SECRET_KEY", "change-this-in-production"),
             google_oauth_client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
             database_url=os.getenv("DATABASE_URL", ""),
