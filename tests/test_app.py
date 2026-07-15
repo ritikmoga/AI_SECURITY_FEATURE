@@ -10,6 +10,8 @@ def test_health_endpoint(tmp_path: Path):
     response = client.get("/api/health")
     assert response.status_code == 200
     assert response.get_json()["status"] == "success"
+    assert response.headers["X-Content-Type-Options"] == "nosniff"
+    assert response.headers["X-Request-ID"]
 
 
 def test_scan_url_endpoint(tmp_path: Path):

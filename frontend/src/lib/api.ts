@@ -1,7 +1,19 @@
-import type { ApiEnvelope, HealthStatus, ScanReport } from '../types';
+import type { AdminOverview, ApiEnvelope, AuthSession, HealthStatus, ScanReport } from '../types';
 
-const DEFAULT_API_BASE = 'http://127.0.0.1:5001';
+const DEFAULT_API_BASE = 'http://192.168.1.78:5000';
 export const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || DEFAULT_API_BASE).replace(/\/$/, '');
+const SESSION_KEY = 'scamshield.auth.session.v1';
+
+export function readSession(): AuthSession | null {
+  try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
+}
+
+export function saveSession(session: AuthSession): void { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); }
+export function clearSession(): void { localStorage.removeItem(SESSION_KEY); }
+function authHeaders(): HeadersInit {
+  const token = readSession()?.token;
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 async function parseResponse<T>(response: Response): Promise<T> {
   let payload: ApiEnvelope<T> | T;
@@ -32,7 +44,7 @@ export async function getHealth(): Promise<HealthStatus> {
 export async function scanUrl(url: string): Promise<ScanReport> {
   const response = await fetch(`${API_BASE_URL}/api/scan/url`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ url })
   });
   return parseResponse<ScanReport>(response);
@@ -41,7 +53,7 @@ export async function scanUrl(url: string): Promise<ScanReport> {
 export async function scanMessage(payload: { subject: string; body: string; attachments: Array<{ filename: string }> }): Promise<ScanReport> {
   const response = await fetch(`${API_BASE_URL}/api/scan/message`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(payload)
   });
   return parseResponse<ScanReport>(response);
@@ -50,7 +62,7 @@ export async function scanMessage(payload: { subject: string; body: string; atta
 export async function scanQrText(text: string): Promise<ScanReport> {
   const response = await fetch(`${API_BASE_URL}/api/scan/qr`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify({ text })
   });
   return parseResponse<ScanReport>(response);
@@ -60,13 +72,30 @@ export async function scanFile(file: File): Promise<ScanReport> {
   const form = new FormData();
   form.append('file', file);
   const response = await fetch(`${API_BASE_URL}/api/scan/file`, {
-    method: 'POST',
+    method: 'POST', headers: authHeaders(),
     body: form
   });
   return parseResponse<ScanReport>(response);
 }
 
 export async function fetchReport(scanId: string): Promise<ScanReport> {
-  const response = await fetch(`${API_BASE_URL}/api/scan/report/${encodeURIComponent(scanId.trim())}`);
+  const response = await fetch(`${API_BASE_URL}/api/scan/report/${encodeURIComponent(scanId.trim())}`, { headers: authHeaders() });
   return parseResponse<ScanReport>(response);
+}
+
+export async function googleSignIn(credential: string): Promise<AuthSession> {
+  const response = await fetch(`${API_BASE_URL}/api/auth/google`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ credential })
+  });
+  return parseResponse<AuthSession>(response);
+}
+
+export async function fetchUserReports(): Promise<ScanReport[]> {
+  const response = await fetch(`${API_BASE_URL}/api/user/reports`, { headers: authHeaders() });
+  return parseResponse<ScanReport[]>(response);
+}
+
+export async function fetchAdminOverview(): Promise<AdminOverview> {
+  const response = await fetch(`${API_BASE_URL}/api/admin/overview`, { headers: authHeaders() });
+  return parseResponse<AdminOverview>(response);
 }

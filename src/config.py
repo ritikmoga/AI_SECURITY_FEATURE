@@ -27,6 +27,14 @@ class AppConfig:
     google_safe_browsing_api_key: str = ""
     virustotal_api_key: str = ""
     urlscan_api_key: str = ""
+    database_path: Path = Path("./data/scamshield.db")
+    auth_secret_key: str = "change-this-in-production"
+    google_oauth_client_id: str = ""
+    database_url: str = ""
+    redis_url: str = ""
+    jwt_access_token_minutes: int = 20
+    jwt_refresh_token_days: int = 14
+    admin_emails: set[str] = field(default_factory=set)
 
     @classmethod
     def from_env(cls) -> "AppConfig":
@@ -50,4 +58,12 @@ class AppConfig:
             google_safe_browsing_api_key=os.getenv("GOOGLE_SAFE_BROWSING_API_KEY", ""),
             virustotal_api_key=os.getenv("VIRUSTOTAL_API_KEY", ""),
             urlscan_api_key=os.getenv("URLSCAN_API_KEY", ""),
+            database_path=Path(os.getenv("DATABASE_PATH", "./data/scamshield.db")),
+            auth_secret_key=os.getenv("AUTH_SECRET_KEY", "change-this-in-production"),
+            google_oauth_client_id=os.getenv("GOOGLE_OAUTH_CLIENT_ID", ""),
+            database_url=os.getenv("DATABASE_URL", ""),
+            redis_url=os.getenv("REDIS_URL", ""),
+            jwt_access_token_minutes=int(os.getenv("JWT_ACCESS_TOKEN_MINUTES", "20")),
+            jwt_refresh_token_days=int(os.getenv("JWT_REFRESH_TOKEN_DAYS", "14")),
+            admin_emails={item.strip().lower() for item in os.getenv("ADMIN_EMAILS", "").split(",") if item.strip()},
         )

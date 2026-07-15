@@ -97,6 +97,31 @@ VIRUSTOTAL_API_KEY=
 URLSCAN_API_KEY=
 ```
 
+## Accounts and Google Sign-In
+
+The app now stores Google-authenticated users and their signed-in scan history in
+SQLite by default at `data/scamshield.db`. For PostgreSQL deployments, use the
+production-ready schema in `database/users_schema.sql`.
+
+To enable Google Sign-In:
+
+1. In Google Cloud Console, create an OAuth 2.0 **Web application** client.
+2. Add your frontend origins (for example `http://localhost:5173`) under
+   Authorized JavaScript origins.
+3. Set the same client ID in both environments:
+
+```env
+# Backend .env
+GOOGLE_OAUTH_CLIENT_ID=your-client-id.apps.googleusercontent.com
+
+# frontend/.env
+VITE_GOOGLE_CLIENT_ID=your-client-id.apps.googleusercontent.com
+```
+
+Also replace `AUTH_SECRET_KEY` with a long random secret before deployment.
+The backend verifies Google ID tokens; the browser never sends Google profile
+data as a substitute for a verified credential.
+
 ## Optional External Checks
 
 Set this only after adding API keys:

@@ -1,0 +1,42 @@
+openapi: 3.0.3
+info:
+  title: ScamShield AI API
+  version: 1.1.0
+  description: Defensive URL, message, file, and QR scanner API.
+servers:
+  - url: http://localhost:5000
+paths:
+  /api/health:
+    get:
+      summary: Service health
+      responses: { '200': { description: Service status } }
+  /api/scan/url:
+    post:
+      summary: Scan a URL with defensive heuristics
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [url], properties: { url: { type: string, format: uri } } }
+      responses: { '200': { description: Scan report }, '400': { description: Invalid input } }
+  /api/auth/google:
+    post:
+      summary: Exchange a verified Google ID credential for app tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object, required: [credential], properties: { credential: { type: string } } }
+      responses: { '200': { description: Access and refresh tokens }, '401': { description: Invalid credential } }
+  /api/auth/refresh:
+    post:
+      summary: Rotate an access/refresh JWT pair
+      responses: { '200': { description: New token pair } }
+  /api/user/dashboard:
+    get:
+      summary: Signed-in scan statistics
+      security: [{ bearerAuth: [] }]
+      responses: { '200': { description: Dashboard statistics }, '401': { description: Sign in required } }
+components:
+  securitySchemes:
+    bearerAuth: { type: http, scheme: bearer, bearerFormat: JWT }

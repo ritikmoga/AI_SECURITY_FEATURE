@@ -37,6 +37,29 @@ export interface HealthStatus {
   version: string;
   external_checks_enabled: boolean;
   max_file_size_mb: number;
+  google_sign_in_enabled?: boolean;
+}
+
+export interface AppUser {
+  id: number | string;
+  email: string;
+  display_name: string;
+  avatar_url?: string | null;
+  role?: 'user' | 'admin' | string;
+}
+
+export interface AuthSession {
+  token: string;
+  refresh_token?: string;
+  user: AppUser;
+}
+
+export interface AdminOverview {
+  service: string;
+  storage: string;
+  rate_limiter: string;
+  external_checks_enabled: boolean;
 }
 
 export type ScannerTab = 'url' | 'message' | 'file' | 'qr' | 'report';
+export type DashboardPage = 'url' | 'message' | 'file' | 'qr' | 'reports' | 'lookup' | 'admin';

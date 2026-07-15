@@ -6,3 +6,7 @@ werkzeug>=3.0,<4.0
 pytest>=8.0,<9.0
 pytest-cov>=5.0,<7.0
 gunicorn
+google-auth>=2.0,<3.0
+PyJWT>=2.10,<3.0
+redis>=5.0,<7.0
+psycopg[binary]>=3.2,<4.0
